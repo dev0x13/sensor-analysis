@@ -1,6 +1,7 @@
 package net.bigdata.motionlogger;
 
 import java.io.Serializable;
+import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.HashMap;
 import java.util.List;
@@ -133,13 +134,11 @@ public class MotionLogger extends Service {
 
                     break;
                 case DOUBLE_LIST:
-                    double[] valuesDoubleArray = new double[event.values.length];
+                    List<Double> valuesList = new ArrayList<>();
 
-                    for (int i = 0; i < event.values.length; i++) {
-                        valuesDoubleArray[i] = event.values[i];
+                    for (double e : event.values) {
+                        valuesList.add(e);
                     }
-
-                    List<Double> valuesList = Arrays.stream(valuesDoubleArray).boxed().collect(Collectors.toList());
 
                     motionLogger.collectedData.get(sensorType)
                             .put(Long.toString(System.currentTimeMillis()), new MotionEvent(motionLogger.label, valuesList));
