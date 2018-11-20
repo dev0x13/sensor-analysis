@@ -1,8 +1,9 @@
 <?xml version="1.0" encoding="utf-8"?>
 <manifest xmlns:android="http://schemas.android.com/apk/res/android"
-    package="motionlogger_app.bigdata.net.motionloggerapp">
+    package="net.bigdata.motionlogger">
 
     <uses-permission android:name="android.permission.INTERNET" />
+    <uses-permission android:name="android.permission.WAKE_LOCK" />
 
     <application
         android:allowBackup="true"
@@ -19,7 +20,7 @@
             </intent-filter>
         </activity>
         <service
-            android:name="net.bigdata.motionlogger.MotionLogger"
+            android:name="net.bigdata.motionlogger.sensor_service.MotionLogger"
             android:process=":remote" />
     </application>
 

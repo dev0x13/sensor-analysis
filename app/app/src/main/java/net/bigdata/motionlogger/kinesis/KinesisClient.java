@@ -1,19 +1,37 @@
-package motionlogger_app.bigdata.net.motionloggerapp;
+package net.bigdata.motionlogger.kinesis;
 
 import android.annotation.SuppressLint;
 import android.os.AsyncTask;
 import android.util.Log;
 
 import com.amazonaws.AmazonClientException;
-import com.amazonaws.auth.AWSStaticCredentialsProvider;
+import com.amazonaws.auth.AWSCredentials;
+import com.amazonaws.auth.AWSCredentialsProvider;
 import com.amazonaws.auth.BasicAWSCredentials;
-import com.amazonaws.auth.PropertiesFileCredentialsProvider;
-import com.amazonaws.mobileconnectors.kinesis.kinesisrecorder.*;
+import com.amazonaws.mobileconnectors.kinesis.kinesisrecorder.KinesisRecorder;
 import com.amazonaws.regions.Regions;
+import com.amazonaws.util.ValidationUtils;
 
 import java.io.File;
 
 public class KinesisClient {
+
+    public class AWSStaticCredentialsProvider implements AWSCredentialsProvider {
+
+        private final AWSCredentials credentials;
+
+        public AWSStaticCredentialsProvider(AWSCredentials credentials) {
+            this.credentials = ValidationUtils.assertNotNull(credentials, "credentials");
+        }
+
+        public AWSCredentials getCredentials() {
+            return credentials;
+        }
+
+        public void refresh() {}
+    }
+
+
     private KinesisRecorder kinesisRecorder;
     private static String streamName = "SensorsData";
     private static Regions region = Regions.US_EAST_2;

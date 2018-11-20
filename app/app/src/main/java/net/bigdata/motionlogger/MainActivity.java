@@ -1,4 +1,4 @@
-package motionlogger_app.bigdata.net.motionloggerapp;
+package net.bigdata.motionlogger;
 
 import android.content.BroadcastReceiver;
 import android.content.ComponentName;
@@ -14,10 +14,8 @@ import android.os.RemoteException;
 import android.support.v7.app.AppCompatActivity;
 import android.os.Bundle;
 
-import net.bigdata.motionlogger.MotionLogger;
-
-import java.util.Timer;
-import java.util.TimerTask;
+import net.bigdata.motionlogger.sensor_service.MotionLogger;
+import net.bigdata.motionlogger.kinesis.KinesisClient;
 
 public class MainActivity extends AppCompatActivity {
 
@@ -60,24 +58,7 @@ public class MainActivity extends AppCompatActivity {
         }
 
         @Override
-        public void handleMessage(Message msg) {
-            final int what = msg.what;
-            final Bundle b = msg.getData();
-
-            new Thread(new Runnable() {
-                @Override
-                public void run() {
-                    if (what == MotionLogger.MSG_FLUSH) {
-                        if (b != null) {
-                        /*
-                        mainActivity.datasetCollector.collectMotion(
-                                (HashMap<String, Map<String, List<Double>>>) b.getSerializable(MotionLogger.KEY_DATA));
-                        */
-                        }
-                    }
-                }
-            }).start();
-        }
+        public void handleMessage(Message msg) {}
     }
 
     private final ServiceConnection motionLoggerConnection = new ServiceConnection() {
@@ -90,36 +71,9 @@ public class MainActivity extends AppCompatActivity {
                 // Init motion logger's labeling
                 setMotionLoggerUserState(UserState.SCREEN_ON);
 
-                // Register client to receive data
-                Message message = Message.obtain(null, MotionLogger.MSG_REGISTER_CLIENT);
-                message.replyTo = callbackMessenger;
-                sensorLoggerService.send(message);
-
                 // Start motion logging
-                message = Message.obtain(null, MotionLogger.MSG_START_LOGGING);
+                Message message = Message.obtain(null, MotionLogger.MSG_START_LOGGING);
                 sensorLoggerService.send(message);
-
-                // Create and start data flush periodic task
-                TimerTask timerTask = new TimerTask() {
-                    @Override
-                    public void run() {
-                        new Thread(new Runnable() {
-                            @Override
-                            public void run() {
-                                Message message = Message.obtain(null, MotionLogger.MSG_FLUSH);
-
-                                /*
-                                try {
-                                    sensorLoggerService.send(message);
-                                } catch (RemoteException e) {}
-                                */
-                            }
-                        }).start();
-                    }
-                };
-
-                Timer timer = new Timer();
-                timer.schedule(timerTask, 500, 500);
 
             } catch (final RemoteException e) {
                 System.out.println(e.getMessage());
@@ -148,18 +102,7 @@ public class MainActivity extends AppCompatActivity {
         super.onCreate(savedInstanceState);
         setContentView(R.layout.activity_main);
 
-        /// KINESIS EXAMPLE
-
-        // init KinesisClient and collect data
-        String accessKey = "AKIAI7DA2HSJKOZ4I55Q";
-        String secretKey = "BApT40kO8lbzfu13YPyOn1cuAmYExQcrhtW4JkP6";
-        KinesisClient kinesisClient = new KinesisClient(this.getDir("kinesis_data_storage", 0), accessKey, secretKey);
-        kinesisClient.collectData("kek".getBytes());
-
-        ///
-
         // Add screen off/on listener
-        /*
         broadcastReceiver = new BroadcastReceiver() {
             public void onReceive(Context context, Intent intent) {
                 String action = intent.getAction();
@@ -179,10 +122,8 @@ public class MainActivity extends AppCompatActivity {
 
         // Bind motion logger service
         Intent motionLogger = new Intent(MainActivity.this, MotionLogger.class);
-        motionLogger.putExtra(MotionLogger.KEY_DATA_REPR, MotionLogger.SensorDataRepr.DOUBLE_LIST.getValue());
         startService(motionLogger);
         bindService(motionLogger, motionLoggerConnection, Context.BIND_AUTO_CREATE);
-        */
     }
 
     @Override

@@ -1,14 +1,12 @@
-package net.bigdata.motionlogger;
+package net.bigdata.motionlogger.sensor_service;
 
 import java.io.Serializable;
-import java.util.ArrayList;
-import java.util.Arrays;
 import java.util.HashMap;
 import java.util.List;
-import java.util.Map;
+import java.util.Timer;
+import java.util.TimerTask;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ConcurrentMap;
-import java.util.stream.Collectors;
 
 import android.app.Service;
 import android.content.Context;
@@ -24,36 +22,19 @@ import android.os.Message;
 import android.os.Messenger;
 import android.os.PowerManager;
 import android.os.RemoteException;
+import android.util.Base64;
 import android.util.Log;
 
-import net.bigdata.motionlogger.enums.Status;
+import com.google.gson.Gson;
 
-import static java.lang.StrictMath.min;
+import net.bigdata.motionlogger.enums.Status;
+import net.bigdata.motionlogger.kinesis.KinesisClient;
 
 public class MotionLogger extends Service {
-    /**
-     * Different representations of data are needed (e.g. for serialization)
-     */
-    public enum SensorDataRepr {
-        FLOAT_ARRAY(0),
-        DOUBLE_LIST(1);
-
-        private final int value;
-
-        SensorDataRepr(int value) {
-            this.value = value;
-        }
-
-        public int getValue() {
-            return value;
-        }
-    }
-
     /**
      * Message handler for the MotionLogger service
      */
     private static class MessageHandler extends Handler {
-        private Messenger client;
         private MotionLogger motionLogger;
 
         private MessageHandler(MotionLogger motionLogger) {
@@ -63,26 +44,11 @@ public class MotionLogger extends Service {
         @Override
         public void handleMessage(final Message msg) {
             switch (msg.what) {
-                case MSG_REGISTER_CLIENT:
-                    client = msg.replyTo;
-                    break;
                 case MSG_START_LOGGING:
                     motionLogger.startLogging();
                     break;
                 case MSG_STOP_LOGGING:
                     motionLogger.stopLogging();
-                    break;
-                case MSG_FLUSH:
-                    Message message = Message.obtain(null, MSG_FLUSH);
-                    Bundle dataToSend = new Bundle();
-                    dataToSend.putSerializable(KEY_DATA, motionLogger.flush());
-                    message.setData(dataToSend);
-                    try {
-                        client.send(message);
-                    }
-                    catch (RemoteException e) {
-                        Log.d(TAG, "Send message with data failed");
-                    }
                     break;
                 case MSG_SET_LABEL:
                     Bundle dataReceived = msg.getData();
@@ -96,9 +62,9 @@ public class MotionLogger extends Service {
 
     private static class MotionEvent implements Serializable {
         public String label;
-        public Object data;
+        public float[] data;
 
-        public MotionEvent(String label, Object data) {
+        public MotionEvent(String label, float[] data) {
             this.label = label;
             this.data = data;
         }
@@ -124,27 +90,11 @@ public class MotionLogger extends Service {
             }
 
             if (!motionLogger.collectedData.containsKey(sensorType)) {
-                motionLogger.collectedData.put(sensorType, new HashMap<>());
+                motionLogger.collectedData.put(sensorType, new HashMap<String, MotionEvent>());
             }
 
-            switch (motionLogger.sensorDataRepr) {
-                case FLOAT_ARRAY:
-                    motionLogger.collectedData.get(sensorType)
-                            .put(Long.toString(System.currentTimeMillis()), new MotionEvent(motionLogger.label, event.values));
-
-                    break;
-                case DOUBLE_LIST:
-                    List<Double> valuesList = new ArrayList<>();
-
-                    for (double e : event.values) {
-                        valuesList.add(e);
-                    }
-
-                    motionLogger.collectedData.get(sensorType)
-                            .put(Long.toString(System.currentTimeMillis()), new MotionEvent(motionLogger.label, valuesList));
-
-                    break;
-            }
+            motionLogger.collectedData.get(sensorType)
+                    .put(Long.toString(System.currentTimeMillis()), new MotionEvent(motionLogger.label, event.values));
         }
 
         @Override
@@ -154,15 +104,11 @@ public class MotionLogger extends Service {
     /**
      * Message types
      */
-    public final static int MSG_REGISTER_CLIENT = 0;
     public final static int MSG_START_LOGGING = 1;
     public final static int MSG_STOP_LOGGING = 2;
-    public final static int MSG_FLUSH = 3;
     public final static int MSG_SET_LABEL = 4;
 
-    public final static String KEY_DATA = "DATA";
     public final static String KEY_LABEL = "LABEL";
-    public final static String KEY_DATA_REPR = "DATA_REPR";
     public final static String TAG = "MotionLogger";
 
     private String label = "";
@@ -175,9 +121,9 @@ public class MotionLogger extends Service {
 
     private PowerManager.WakeLock partialWakeLock;
 
-    private ConcurrentMap<String, Map<String, Object>> collectedData;
+    private ConcurrentMap<String, HashMap<String, MotionEvent>> collectedData;
 
-    private SensorDataRepr sensorDataRepr = SensorDataRepr.FLOAT_ARRAY;
+    private KinesisClient kinesisClient;
 
     private void startLogging() {
         if (status == Status.IDLE) {
@@ -195,19 +141,32 @@ public class MotionLogger extends Service {
             }
 
             status = Status.WORKING;
+
+            String accessKey = "AKIAI7DA2HSJKOZ4I55Q";
+            String secretKey = "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";
+            kinesisClient = new KinesisClient(this.getDir("kinesis_data_storage", 0), accessKey, secretKey);
+
+            // Create and start data flush periodic task
+            TimerTask timerTask = new TimerTask() {
+                @Override
+                public void run() {
+                    new Thread(new Runnable() {
+                        @Override
+                        public void run() {
+                            Gson gson = new Gson();
+                            HashMap<String, HashMap<String, MotionEvent>> mapCopy = new HashMap<>(collectedData);
+                            collectedData.clear();
+                            String json = gson.toJson(mapCopy);
+                            kinesisClient.collectData(json.getBytes());
+                        }
+                    }
+                    ).start();
+                }
+            };
+
+            Timer timer = new Timer();
+            timer.schedule(timerTask, 1000, 1000);
         }
-    }
-
-    private HashMap<String, Map<String, Object>> flush() {
-        if (status == Status.WORKING) {
-            HashMap<String, Map<String, Object>> mapToReturn = new HashMap<>(collectedData);
-
-            collectedData = new ConcurrentHashMap<>();
-
-            return mapToReturn;
-        }
-
-        return null;
     }
 
     private void stopLogging() {
@@ -237,13 +196,6 @@ public class MotionLogger extends Service {
 
     @Override
     public IBinder onBind(Intent intent) {
-        Bundle extras = intent.getExtras();
-
-        if (extras != null) {
-            int dataRepr = min(extras.getInt(KEY_DATA_REPR), SensorDataRepr.values().length - 1);
-            sensorDataRepr = SensorDataRepr.values()[dataRepr];
-        }
-
         return messenger.getBinder();
     }
 
