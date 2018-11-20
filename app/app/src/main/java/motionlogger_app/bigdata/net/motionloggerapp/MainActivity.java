@@ -148,6 +148,23 @@ public class MainActivity extends AppCompatActivity {
         super.onCreate(savedInstanceState);
         setContentView(R.layout.activity_main);
 
+        /// KINESIS EXAMPLE
+        /*
+        // copy assets to the internal storage
+        String copyTo = getExternalFilesDir("").getPath();
+        AssetsUtils assetsUtils = new AssetsUtils(this);
+        assetsUtils.copyAssetsFolder("extra", copyTo);
+
+        // get credentials file path
+        String externalDir = getExternalFilesDir(null).getAbsolutePath();
+        String credentialsFilePath = externalDir + "/extra/credentials";
+
+        // init KinesisClient and collect data
+        KinesisClient kinesisClient = new KinesisClient(this.getDir("kinesis_data_storage", 0), credentialsFilePath);
+        kinesisClient.collectData("kek".getBytes());
+        */
+        ///
+
         // Add screen off/on listener
         broadcastReceiver = new BroadcastReceiver() {
             public void onReceive(Context context, Intent intent) {

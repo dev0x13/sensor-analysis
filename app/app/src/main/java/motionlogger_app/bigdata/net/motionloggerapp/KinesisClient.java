@@ -1,31 +1,45 @@
 package motionlogger_app.bigdata.net.motionloggerapp;
 
-import android.content.Context;
+import android.annotation.SuppressLint;
+import android.os.AsyncTask;
+import android.util.Log;
 
-import com.amazonaws.auth.CognitoCredentialsProvider;
+import com.amazonaws.AmazonClientException;
+import com.amazonaws.auth.PropertiesFileCredentialsProvider;
 import com.amazonaws.mobileconnectors.kinesis.kinesisrecorder.*;
-import com.amazonaws.auth.CognitoCachingCredentialsProvider;
 import com.amazonaws.regions.Regions;
 
 import java.io.File;
 
 public class KinesisClient {
-    private CognitoCredentialsProvider credentialsProvider;
     private KinesisRecorder kinesisRecorder;
-    private static String identityPoolID = "";
-    private static String streamName = "";
-    private static Regions region = Regions.DEFAULT_REGION;
+    private static String streamName = "SensorsData";
+    private static Regions region = Regions.US_EAST_2;
 
-    public KinesisClient(Context context, File dir) {
-        credentialsProvider = new CognitoCachingCredentialsProvider(
-                context,
-                identityPoolID,
-                region);
-        kinesisRecorder = new KinesisRecorder(dir, region, credentialsProvider);
+    public KinesisClient(File dir, String credentialsFilePath) {
+
+        PropertiesFileCredentialsProvider credentials = new PropertiesFileCredentialsProvider(credentialsFilePath);
+
+        kinesisRecorder = new KinesisRecorder(
+                dir,
+                region,
+                credentials
+        );
     }
 
+    @SuppressLint("StaticFieldLeak")
     public void collectData(byte[] data) {
         kinesisRecorder.saveRecord(data, streamName);
-        kinesisRecorder.submitAllRecords();
+        new AsyncTask<Void, Void, Void>() {
+            @Override
+            protected Void doInBackground(Void... v) {
+                try {
+                    kinesisRecorder.submitAllRecords();
+                } catch (AmazonClientException ace) {
+                    Log.e("INIT", "Network error.", ace);
+                }
+                return null;
+            }
+        }.execute();
     }
 }
