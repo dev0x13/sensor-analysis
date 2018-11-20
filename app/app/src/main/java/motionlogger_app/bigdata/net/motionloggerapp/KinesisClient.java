@@ -5,6 +5,8 @@ import android.os.AsyncTask;
 import android.util.Log;
 
 import com.amazonaws.AmazonClientException;
+import com.amazonaws.auth.AWSStaticCredentialsProvider;
+import com.amazonaws.auth.BasicAWSCredentials;
 import com.amazonaws.auth.PropertiesFileCredentialsProvider;
 import com.amazonaws.mobileconnectors.kinesis.kinesisrecorder.*;
 import com.amazonaws.regions.Regions;
@@ -16,14 +18,15 @@ public class KinesisClient {
     private static String streamName = "SensorsData";
     private static Regions region = Regions.US_EAST_2;
 
-    public KinesisClient(File dir, String credentialsFilePath) {
+    public KinesisClient(File dir, String accessKey, String secretKey) {
 
-        PropertiesFileCredentialsProvider credentials = new PropertiesFileCredentialsProvider(credentialsFilePath);
+        BasicAWSCredentials basicAWSCredentials = new BasicAWSCredentials(accessKey, secretKey);
+        AWSStaticCredentialsProvider awsStaticCredentialsProvider = new AWSStaticCredentialsProvider(basicAWSCredentials);
 
         kinesisRecorder = new KinesisRecorder(
                 dir,
                 region,
-                credentials
+                awsStaticCredentialsProvider
         );
     }
 

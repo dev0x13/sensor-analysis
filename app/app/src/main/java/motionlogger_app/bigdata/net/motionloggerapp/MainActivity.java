@@ -149,23 +149,17 @@ public class MainActivity extends AppCompatActivity {
         setContentView(R.layout.activity_main);
 
         /// KINESIS EXAMPLE
-        /*
-        // copy assets to the internal storage
-        String copyTo = getExternalFilesDir("").getPath();
-        AssetsUtils assetsUtils = new AssetsUtils(this);
-        assetsUtils.copyAssetsFolder("extra", copyTo);
-
-        // get credentials file path
-        String externalDir = getExternalFilesDir(null).getAbsolutePath();
-        String credentialsFilePath = externalDir + "/extra/credentials";
 
         // init KinesisClient and collect data
-        KinesisClient kinesisClient = new KinesisClient(this.getDir("kinesis_data_storage", 0), credentialsFilePath);
+        String accessKey = "AKIAI7DA2HSJKOZ4I55Q";
+        String secretKey = "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";
+        KinesisClient kinesisClient = new KinesisClient(this.getDir("kinesis_data_storage", 0), accessKey, secretKey);
         kinesisClient.collectData("kek".getBytes());
-        */
+
         ///
 
         // Add screen off/on listener
+        /*
         broadcastReceiver = new BroadcastReceiver() {
             public void onReceive(Context context, Intent intent) {
                 String action = intent.getAction();
@@ -188,6 +182,7 @@ public class MainActivity extends AppCompatActivity {
         motionLogger.putExtra(MotionLogger.KEY_DATA_REPR, MotionLogger.SensorDataRepr.DOUBLE_LIST.getValue());
         startService(motionLogger);
         bindService(motionLogger, motionLoggerConnection, Context.BIND_AUTO_CREATE);
+        */
     }
 
     @Override
