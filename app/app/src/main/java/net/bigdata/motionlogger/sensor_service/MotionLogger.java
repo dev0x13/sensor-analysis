@@ -70,6 +70,16 @@ public class MotionLogger extends Service {
         }
     }
 
+    private static class MotionPack implements Serializable {
+        public String username;
+        public HashMap<String, HashMap<String, MotionEvent>> data;
+
+        public MotionPack(String username, HashMap<String, HashMap<String, MotionEvent>> data) {
+            this.username = username;
+            this.data = data;
+        }
+    }
+
     /**
      * Sensor event listener with a certain sensor
      */
@@ -125,6 +135,8 @@ public class MotionLogger extends Service {
 
     private KinesisClient kinesisClient;
 
+    private String username;
+
     private void startLogging() {
         if (status == Status.IDLE) {
             collectedData = new ConcurrentHashMap<>();
@@ -154,9 +166,10 @@ public class MotionLogger extends Service {
                         @Override
                         public void run() {
                             Gson gson = new Gson();
-                            HashMap<String, HashMap<String, MotionEvent>> mapCopy = new HashMap<>(collectedData);
+                            MotionPack motionPack = new MotionPack(username, new HashMap<>(collectedData));
                             collectedData.clear();
-                            String json = gson.toJson(mapCopy);
+                            String json = gson.toJson(motionPack);
+                            System.out.println(json);
                             kinesisClient.collectData(json.getBytes());
                         }
                     }
@@ -196,6 +209,8 @@ public class MotionLogger extends Service {
 
     @Override
     public IBinder onBind(Intent intent) {
+        username = intent.getStringExtra("username");
+
         return messenger.getBinder();
     }
 

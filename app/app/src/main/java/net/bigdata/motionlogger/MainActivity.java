@@ -1,11 +1,14 @@
 package net.bigdata.motionlogger;
 
+import android.app.AlertDialog;
 import android.content.BroadcastReceiver;
 import android.content.ComponentName;
 import android.content.Context;
+import android.content.DialogInterface;
 import android.content.Intent;
 import android.content.IntentFilter;
 import android.content.ServiceConnection;
+import android.content.SharedPreferences;
 import android.os.Handler;
 import android.os.IBinder;
 import android.os.Message;
@@ -13,6 +16,8 @@ import android.os.Messenger;
 import android.os.RemoteException;
 import android.support.v7.app.AppCompatActivity;
 import android.os.Bundle;
+import android.text.InputType;
+import android.widget.EditText;
 
 import net.bigdata.motionlogger.sensor_service.MotionLogger;
 import net.bigdata.motionlogger.kinesis.KinesisClient;
@@ -97,11 +102,7 @@ public class MainActivity extends AppCompatActivity {
         } catch (RemoteException e) {}
     }
 
-    @Override
-    protected void onCreate(Bundle savedInstanceState) {
-        super.onCreate(savedInstanceState);
-        setContentView(R.layout.activity_main);
-
+    private void runService(String username) {
         // Add screen off/on listener
         broadcastReceiver = new BroadcastReceiver() {
             public void onReceive(Context context, Intent intent) {
@@ -122,8 +123,44 @@ public class MainActivity extends AppCompatActivity {
 
         // Bind motion logger service
         Intent motionLogger = new Intent(MainActivity.this, MotionLogger.class);
+        motionLogger.putExtra("username", username);
         startService(motionLogger);
         bindService(motionLogger, motionLoggerConnection, Context.BIND_AUTO_CREATE);
+    }
+
+    @Override
+    protected void onCreate(Bundle savedInstanceState) {
+        super.onCreate(savedInstanceState);
+        setContentView(R.layout.activity_main);
+
+        SharedPreferences sharedPreferences = getSharedPreferences("sharedPref", Context.MODE_PRIVATE);
+        String username = sharedPreferences.getString("username", null);
+
+        if (username == null) {
+            final AlertDialog.Builder builder = new AlertDialog.Builder(this);
+            builder.setTitle("Enter username");
+
+            final EditText input = new EditText(this);
+            input.setInputType(InputType.TYPE_CLASS_TEXT);
+            builder.setView(input);
+
+            builder.setPositiveButton("OK", new DialogInterface.OnClickListener() {
+                @Override
+                public void onClick(DialogInterface dialog, int which) {
+                    SharedPreferences.Editor editor = getSharedPreferences("sharedPref", Context.MODE_PRIVATE).edit();
+                    String username = input.getText().toString() + "_" + Long.toHexString(Double.doubleToLongBits(Math.random()));
+
+                    editor.putString("username", username);
+                    editor.apply();
+
+                    runService(username);
+                }
+            });
+
+            builder.show();
+        } else {
+            runService(username);
+        }
     }
 
     @Override
