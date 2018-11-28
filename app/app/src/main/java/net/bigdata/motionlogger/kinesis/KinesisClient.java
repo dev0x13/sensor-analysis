@@ -56,9 +56,7 @@ public class KinesisClient {
             protected Void doInBackground(Void... v) {
                 try {
                     kinesisRecorder.submitAllRecords();
-                } catch (AmazonClientException ace) {
-                    Log.e("INIT", "Network error.", ace);
-                }
+                } catch (Exception ace) {}
                 return null;
             }
         }.execute();

@@ -169,7 +169,6 @@ public class MotionLogger extends Service {
                             MotionPack motionPack = new MotionPack(username, new HashMap<>(collectedData));
                             collectedData.clear();
                             String json = gson.toJson(motionPack);
-                            System.out.println(json);
                             kinesisClient.collectData(json.getBytes());
                         }
                     }

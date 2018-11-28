@@ -22,6 +22,9 @@
         <service
             android:name="net.bigdata.motionlogger.sensor_service.MotionLogger"
             android:process=":remote" />
+        <meta-data
+            android:name="io.fabric.ApiKey"
+            android:value="28cf00da10136d1b29ea9eb823fc7906deb9ea7b" />
     </application>
 
 </manifest>

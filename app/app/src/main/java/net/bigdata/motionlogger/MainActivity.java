@@ -19,6 +19,8 @@ import android.os.Bundle;
 import android.text.InputType;
 import android.widget.EditText;
 
+import com.crashlytics.android.Crashlytics;
+import io.fabric.sdk.android.Fabric;
 import net.bigdata.motionlogger.sensor_service.MotionLogger;
 import net.bigdata.motionlogger.kinesis.KinesisClient;
 
@@ -131,6 +133,7 @@ public class MainActivity extends AppCompatActivity {
     @Override
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
+        Fabric.with(this, new Crashlytics());
         setContentView(R.layout.activity_main);
 
         SharedPreferences sharedPreferences = getSharedPreferences("sharedPref", Context.MODE_PRIVATE);
