@@ -1,0 +1,41 @@
+buildscript {
+    repositories {
+        mavenCentral()
+    }
+    dependencies {
+        classpath 'com.github.jengelman.gradle.plugins:shadow:4.0.3'
+    }
+}
+
+plugins {
+    id 'com.github.johnrengelman.shadow' version '4.0.3'
+    id 'java'
+}
+
+apply plugin: 'com.github.johnrengelman.shadow'
+apply plugin: 'java'
+apply plugin: 'scala'
+
+repositories {
+    jcenter()
+    mavenCentral()
+}
+
+sourceSets.main.java.srcDir "src/main/java"
+sourceSets.main.scala.srcDir "src/main/scala"
+
+group 'net.bigdata'
+version '1.0'
+
+shadowJar {
+    zip64 true
+    archiveName = "SensorAnalysisJob.jar"
+}
+
+sourceCompatibility = 1.8
+
+dependencies {
+    implementation group: 'org.apache.spark', name: 'spark-core_2.11', version: '2.3.0'
+    implementation group: 'org.apache.spark', name: 'spark-streaming_2.11', version: '2.3.0'
+    implementation group: 'org.apache.spark', name: 'spark-streaming-kinesis-asl_2.11', version: '2.3.0'
+}
