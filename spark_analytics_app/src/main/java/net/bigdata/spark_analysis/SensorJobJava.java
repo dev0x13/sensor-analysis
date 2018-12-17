@@ -16,7 +16,7 @@ import org.apache.spark.streaming.kinesis.KinesisInitialPositions.Latest;
 import com.amazonaws.regions.Regions;
 import org.apache.spark.streaming.kinesis.SparkAWSCredentials;
 
-public final class SensorJob {
+public final class SensorJobJava {
     public static void main(String[] args) throws Exception {
         // 1) Set default log4j logging level to WARN to hide Spark logs
         Logger.getRootLogger().setLevel(Level.WARN);
@@ -40,19 +40,22 @@ public final class SensorJob {
 
         SparkAWSCredentials.Builder sparkAWSCredentialsBuilder = new SparkAWSCredentials.Builder();
         sparkAWSCredentialsBuilder.basicCredentials(accessKey, secretKey);
+        SparkAWSCredentials credentials = sparkAWSCredentialsBuilder.build();
 
         // 5) Crete the input stream
         KinesisInputDStream.Builder streamBuilder =
                 KinesisInputDStream.builder()
                 .streamingContext(jssc)
-                .kinesisCredentials(sparkAWSCredentialsBuilder.build())
+                .kinesisCredentials(credentials)
+                .dynamoDBCredentials(credentials)
+                .cloudWatchCredentials(credentials)
                 .checkpointAppName(kinesisAppName)
                 .streamName(streamName)
                 .endpointUrl(endpointUrl)
                 .regionName(Regions.US_EAST_2.getName())
                 .initialPosition(new Latest())
                 .checkpointInterval(batchInterval)
-                .storageLevel(StorageLevel.MEMORY_AND_DISK_2());
+                .storageLevel(StorageLevel.MEMORY_ONLY());
 
         JavaDStream<byte[]> stream = new JavaDStream<>(streamBuilder.build(), scala.reflect.ClassTag$.MODULE$.apply(byte[].class));
 
@@ -64,7 +67,7 @@ public final class SensorJob {
         });
 
         // 7) Print result data
-        motionPacks.print();
+        //motionPacks.print();
 
         /*
         stream.foreachRDD((rdd, time) -> {
