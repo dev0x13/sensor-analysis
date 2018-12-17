@@ -1,7 +1,10 @@
 package net.bigdata.spark_analysis
 
+import java.nio.charset.StandardCharsets
+
 import com.amazonaws.auth.BasicAWSCredentials
 import com.amazonaws.services.kinesis.AmazonKinesisClient
+import com.google.gson.Gson
 import org.apache.spark.SparkConf
 import org.apache.spark.storage.StorageLevel
 import org.apache.spark.streaming.StreamingContext
@@ -22,7 +25,9 @@ object StreamAnalyzer {
 
     val kinesisClient = new AmazonKinesisClient(cred)
 
-    val sparkConf = new SparkConf().setAppName(config.appName)
+    val sparkConf = new SparkConf()
+      .setAppName(config.appName)
+      .setMaster("local[*]")
 
     val streamingSparkContext = setupStreamingContext(sparkConf, config)
 
@@ -48,14 +53,13 @@ object StreamAnalyzer {
 
     val unionStreams = streamingSparkContext.union(sparkDStreams)
 
-    val items = unionStreams.flatMap(byteArray => new String(byteArray).split("\n"))
-
-    val transformedStream = items.map (data => {
-      println(data)
-      data
+    val usernames = unionStreams.map( data => {
+      val gson = new Gson
+      val json = new String(data)
+      gson.fromJson(json, classOf[MotionPack])
     })
 
-    transformedStream.print(1)
+    usernames.print()
 
     streamingSparkContext.start()
     streamingSparkContext.awaitTermination()

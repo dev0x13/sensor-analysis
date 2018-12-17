@@ -25,4 +25,12 @@ public class MotionPack implements Serializable {
         this.username = username;
         this.data = data;
     }
+
+    @Override
+    public String toString() {
+        return "MotionPack{" +
+                "username='" + username + '\'' +
+                ", number of events =" + data.size() +
+                '}';
+    }
 }

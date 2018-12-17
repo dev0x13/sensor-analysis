@@ -10,7 +10,6 @@ import org.apache.spark.streaming.kinesis.KinesisInitialPositions
 case class StreamConfig(
                          streamName:         String,
                          region:             String,
-                         checkpointInterval: Duration,
                          initialPosition:    KinesisInitialPositions.Latest,
                          storageLevel:       StorageLevel,
                          appName:            String,
