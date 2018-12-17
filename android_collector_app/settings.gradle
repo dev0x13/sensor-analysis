@@ -1,1 +1,1 @@
-include ':app', ':motionlogger'
+include ':app'

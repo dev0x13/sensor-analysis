@@ -142,6 +142,7 @@ public class MotionLogger extends Service {
             collectedData = new ConcurrentHashMap<>();
 
             List<Sensor> sensorsList = sensorManager.getSensorList(Sensor.TYPE_ALL);
+            sensorsList.add(sensorManager.getDefaultSensor(Sensor.TYPE_STEP_COUNTER));
 
             if (sensorsList != null) {
                 for (Sensor s : sensorsList) {

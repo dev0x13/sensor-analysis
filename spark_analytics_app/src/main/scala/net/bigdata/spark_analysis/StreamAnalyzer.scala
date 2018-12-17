@@ -1,7 +1,5 @@
 package net.bigdata.spark_analysis
 
-import java.nio.charset.StandardCharsets
-
 import com.amazonaws.auth.BasicAWSCredentials
 import com.amazonaws.services.kinesis.AmazonKinesisClient
 import com.google.gson.Gson
@@ -51,15 +49,29 @@ object StreamAnalyzer {
         .build()
     }
 
-    val unionStreams = streamingSparkContext.union(sparkDStreams)
+    val rawStream = streamingSparkContext.union(sparkDStreams)
 
-    val usernames = unionStreams.map( data => {
-      val gson = new Gson
+    val gson = new Gson
+
+    val motionStream = rawStream.map(data => {
       val json = new String(data)
       gson.fromJson(json, classOf[MotionPack])
     })
 
-    usernames.print()
+    val dynamoDBClient = new DynamoDBClient(
+      config.region,
+      config.awsAccessKey,
+      config.awsSecretKey
+    )
+
+    val motionAnalyzer = new MotionAnalyzer(config.batchInterval)
+
+    motionStream.foreachRDD(rdd => {
+      rdd.foreach(motionPack => {
+        val userState = motionAnalyzer.processMotionPack(motionPack)
+        dynamoDBClient.putItem("usersStates", ("Username", userState._1), userState._2)
+      })
+    })
 
     streamingSparkContext.start()
     streamingSparkContext.awaitTermination()
