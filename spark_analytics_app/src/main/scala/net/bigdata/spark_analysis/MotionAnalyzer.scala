@@ -58,18 +58,30 @@ class MotionAnalyzer(timeStep: Duration) {
     android.sensor.gyroscope,
     android.sensor.rotation_vector,
     android.sensor.orientation
+
+    synth.sensor.display
    */
 
   val sensorTypes: HashMap[String, String] =
     HashMap(
       "light" -> "android.sensor.light",
       "rotation" -> "android.sensor.rotation_vector",
-      "display" -> "", // ????
+      "display" -> "synth.sensor.display",
       "stepCounter" -> "android.sensor.step_counter"
     )
 
   private def unpackMotionEventData(motionPack: MotionPack, key: String): Array[Float] = {
-    motionPack.data.get(sensorTypes.get(key)).entrySet().iterator().next().getValue.data
+    val d =  motionPack.data.get(sensorTypes.get(key))
+
+    if (d != null) {
+      val es = d.entrySet()
+
+      if (!es.isEmpty) {
+        return es.iterator().next().getValue.data
+      }
+    }
+
+    null
   }
 
   def processMotionPack(motionPack: MotionPack): (String, CompoundState) = {
@@ -85,12 +97,13 @@ class MotionAnalyzer(timeStep: Duration) {
     val light = unpackMotionEventData(motionPack, "light")
     val display = unpackMotionEventData(motionPack, "display")
 
-    if (sqrt(pow(rotation(0).toDouble, 2) +
-      pow(rotation(1).toDouble, 2)) < posE) {
+    if (rotation != null && sqrt(pow(rotation(0).toDouble, 2) +
+                                 pow(rotation(1).toDouble, 2)) < posE) {
       userState.deviceState = Idle
       userState.sleepStartIter = userState.iterations
     } else {
-      if (light(0) < lightE && display(0) == 0) {
+      if (light != null && display != null &&
+          light(0) < lightE && display(0) == 0) {
         userState.deviceState = InPocket
       } else {
         userState.deviceState = InHand
@@ -99,13 +112,15 @@ class MotionAnalyzer(timeStep: Duration) {
 
     val stepCounter = unpackMotionEventData(motionPack, "stepCounter")
 
-    userState.stepCounter = stepCounter(0).toLong
+    if (stepCounter != null) {
+      userState.stepCounter = stepCounter(0).toLong
+    }
 
     if (userState.iterations < skipFrames) {
       return (motionPack.username, userState)
     }
 
-    if (stepCounter(0) - userState.stepCounter > 1) {
+    if (stepCounter != null && stepCounter(0) - userState.stepCounter > 1) {
       userState.userState = Walking
       userState.walkStartIter = userState.iterations
     } else {

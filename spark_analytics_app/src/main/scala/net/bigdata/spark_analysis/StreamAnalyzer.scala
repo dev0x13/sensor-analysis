@@ -51,25 +51,31 @@ object StreamAnalyzer {
 
     val rawStream = streamingSparkContext.union(sparkDStreams)
 
-    val gson = new Gson
+    val stringStream = rawStream.flatMap(data => new String(data).split("\n"))
 
-    val motionStream = rawStream.map(data => {
-      val json = new String(data)
-      gson.fromJson(json, classOf[MotionPack])
+    val motionStream = stringStream.map(data => {
+      val gson = new Gson
+      gson.fromJson(data, classOf[MotionPack])
     })
 
-    val dynamoDBClient = new DynamoDBClient(
-      config.region,
-      config.awsAccessKey,
-      config.awsSecretKey
-    )
-
-    val motionAnalyzer = new MotionAnalyzer(config.batchInterval)
-
     motionStream.foreachRDD(rdd => {
+      println(rdd.count())
       rdd.foreach(motionPack => {
+        val dynamoDBClient = new DynamoDBClient(
+          config.region,
+          config.awsAccessKey,
+          config.awsSecretKey
+        )
+
+        val motionAnalyzer = new MotionAnalyzer(config.batchInterval)
+
         val userState = motionAnalyzer.processMotionPack(motionPack)
-        dynamoDBClient.putItem("usersStates", ("Username", userState._1), userState._2)
+        val expirationTime = System.currentTimeMillis + 60 * 1000
+        dynamoDBClient.putItem(
+          "users_states",
+          ("username", userState._1),
+          userState._2,
+          expirationTime)
       })
     })
 

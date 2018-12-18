@@ -32,17 +32,25 @@ class DynamoDBClient(
     attributes.get("document").getM
   }
 
-  def putItem(tableName: String, primaryKey: (String, String), stuff: AnyRef): Unit = {
+  def putItem(tableName: String, primaryKey: (String, String), stuff: AnyRef, expirationTime: Long): Unit = {
     val putItemRequest = new PutItemRequest()
     val keyAttribute = new AttributeValue()
 
     keyAttribute.setS(primaryKey._2)
+
     putItemRequest.addItemEntry(primaryKey._1, keyAttribute)
 
     val attributeValues: util.Map[String, AttributeValue] = convertJsonStringToAttributeValue(gson.toJson(stuff))
 
     for ((k, v) <- attributeValues) {
       putItemRequest.addItemEntry(k, v)
+    }
+
+    if (expirationTime != 0) {
+      val attr = new AttributeValue()
+      attr.setN(expirationTime.toString)
+      // FIXME
+      putItemRequest.addItemEntry("timestamp", attr)
     }
 
     db.putItem(putItemRequest)

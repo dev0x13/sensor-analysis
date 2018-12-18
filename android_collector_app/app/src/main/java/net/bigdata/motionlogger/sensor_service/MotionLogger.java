@@ -1,6 +1,7 @@
 package net.bigdata.motionlogger.sensor_service;
 
 import java.io.Serializable;
+import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Timer;
@@ -21,9 +22,6 @@ import android.os.IBinder;
 import android.os.Message;
 import android.os.Messenger;
 import android.os.PowerManager;
-import android.os.RemoteException;
-import android.util.Base64;
-import android.util.Log;
 
 import com.google.gson.Gson;
 
@@ -135,14 +133,23 @@ public class MotionLogger extends Service {
 
     private KinesisClient kinesisClient;
 
+    private PowerManager powerManager;
+
     private String username;
 
     private void startLogging() {
         if (status == Status.IDLE) {
             collectedData = new ConcurrentHashMap<>();
 
-            List<Sensor> sensorsList = sensorManager.getSensorList(Sensor.TYPE_ALL);
+            List<Sensor> sl = sensorManager.getSensorList(Sensor.TYPE_ALL);
+
+            ArrayList<Sensor> sensorsList = new ArrayList<>(0);
+
+            sensorsList.addAll(sl);
+
             sensorsList.add(sensorManager.getDefaultSensor(Sensor.TYPE_STEP_COUNTER));
+
+            powerManager = (PowerManager) getSystemService(POWER_SERVICE);
 
             if (sensorsList != null) {
                 for (Sensor s : sensorsList) {
@@ -168,6 +175,14 @@ public class MotionLogger extends Service {
                         public void run() {
                             Gson gson = new Gson();
                             MotionPack motionPack = new MotionPack(username, new HashMap<>(collectedData));
+
+                            HashMap<String, MotionEvent> synthDisplaySensorData = new HashMap<>();
+                            float[] display = new float[1];
+                            display[0] = powerManager.isInteractive() ? 1f : 0f;
+                            MotionEvent motionEvent = new MotionEvent("", display);
+                            synthDisplaySensorData.put(Long.toString(System.currentTimeMillis()), motionEvent);
+                            motionPack.data.put("synth.sensor.display", synthDisplaySensorData);
+
                             collectedData.clear();
                             String json = gson.toJson(motionPack);
                             kinesisClient.collectData(json.getBytes());
