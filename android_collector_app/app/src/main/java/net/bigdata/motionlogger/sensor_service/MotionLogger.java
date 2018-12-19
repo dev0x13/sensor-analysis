@@ -4,6 +4,7 @@ import java.io.Serializable;
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
+import java.util.Map;
 import java.util.Timer;
 import java.util.TimerTask;
 import java.util.concurrent.ConcurrentHashMap;
@@ -97,12 +98,14 @@ public class MotionLogger extends Service {
                 return;
             }
 
-            if (!motionLogger.collectedData.containsKey(sensorType)) {
-                motionLogger.collectedData.put(sensorType, new HashMap<String, MotionEvent>());
-            }
+            synchronized (motionLogger.collectedData) {
+                if (!motionLogger.collectedData.containsKey(sensorType)) {
+                    motionLogger.collectedData.put(sensorType, new HashMap<String, MotionEvent>());
+                }
 
-            motionLogger.collectedData.get(sensorType)
-                    .put(Long.toString(System.currentTimeMillis()), new MotionEvent(motionLogger.label, event.values));
+                motionLogger.collectedData.get(sensorType)
+                        .put(Long.toString(System.currentTimeMillis()), new MotionEvent(motionLogger.label, event.values));
+            }
         }
 
         @Override
@@ -129,7 +132,8 @@ public class MotionLogger extends Service {
 
     private PowerManager.WakeLock partialWakeLock;
 
-    private ConcurrentMap<String, HashMap<String, MotionEvent>> collectedData;
+    private final ConcurrentMap<String, HashMap<String, MotionEvent>> collectedData =
+            new ConcurrentHashMap<>();
 
     private KinesisClient kinesisClient;
 
@@ -139,7 +143,7 @@ public class MotionLogger extends Service {
 
     private void startLogging() {
         if (status == Status.IDLE) {
-            collectedData = new ConcurrentHashMap<>();
+            //collectedData = new ConcurrentHashMap<>();
 
             List<Sensor> sl = sensorManager.getSensorList(Sensor.TYPE_ALL);
 
@@ -173,17 +177,28 @@ public class MotionLogger extends Service {
                     new Thread(new Runnable() {
                         @Override
                         public void run() {
-                            Gson gson = new Gson();
-                            MotionPack motionPack = new MotionPack(username, new HashMap<>(collectedData));
-
                             HashMap<String, MotionEvent> synthDisplaySensorData = new HashMap<>();
                             float[] display = new float[1];
                             display[0] = powerManager.isInteractive() ? 1f : 0f;
                             MotionEvent motionEvent = new MotionEvent("", display);
                             synthDisplaySensorData.put(Long.toString(System.currentTimeMillis()), motionEvent);
-                            motionPack.data.put("synth.sensor.display", synthDisplaySensorData);
+                            collectedData.put("synth.sensor.display", synthDisplaySensorData);
 
-                            collectedData.clear();
+                            MotionPack motionPack;
+
+                            synchronized (collectedData) {
+                                motionPack = new MotionPack(username, new HashMap<>(collectedData));
+
+                                /*
+                                for (Map.Entry<String, HashMap<String, MotionEvent>> e: collectedData.entrySet()) {
+                                    e.getValue().clear();
+                                }
+                                */
+
+                                collectedData.clear();
+                            }
+
+                            Gson gson = new Gson();
                             String json = gson.toJson(motionPack);
                             kinesisClient.collectData(json.getBytes());
                         }

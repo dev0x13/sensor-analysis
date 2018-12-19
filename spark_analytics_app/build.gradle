@@ -35,6 +35,7 @@ shadowJar {
 sourceCompatibility = 1.8
 
 dependencies {
+    implementation group: 'net.liftweb', name: 'lift-json_2.11', version: '3.3.0'
     implementation group: 'org.apache.spark', name: 'spark-core_2.11', version: '2.3.0'
     implementation group: 'org.apache.spark', name: 'spark-streaming_2.11', version: '2.3.0'
     implementation group: 'org.apache.spark', name: 'spark-streaming-kinesis-asl_2.11', version: '2.3.0'

@@ -1,5 +1,5 @@
 package net.bigdata.spark_analysis;
-
+/*
 import java.nio.charset.StandardCharsets;
 
 import com.google.gson.Gson;
@@ -69,11 +69,9 @@ public final class SensorJobJava {
         // 7) Print result data
         //motionPacks.print();
 
-        /*
-        stream.foreachRDD((rdd, time) -> {
-            System.out.printf("Amount of XMLs: %d\n", rdd.count());
-        });
-        */
+//        stream.foreachRDD((rdd, time) -> {
+//            System.out.printf("Amount of XMLs: %d\n", rdd.count());
+//        });
 
         //events.print();
 
@@ -82,3 +80,4 @@ public final class SensorJobJava {
         jssc.awaitTermination();
     }
 }
+*/

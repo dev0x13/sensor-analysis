@@ -71,13 +71,15 @@ class MotionAnalyzer(timeStep: Duration) {
     )
 
   private def unpackMotionEventData(motionPack: MotionPack, key: String): Array[Float] = {
-    val d =  motionPack.data.get(sensorTypes.get(key))
+    val d =  motionPack.data.get(sensorTypes(key))
 
-    if (d != null) {
-      val es = d.entrySet()
+    val head1 = d.head
 
-      if (!es.isEmpty) {
-        return es.iterator().next().getValue.data
+    if (head1 != null) {
+      val head2 = head1.head
+
+      if (head2 != null) {
+        return head2._2.data
       }
     }
 

@@ -2,6 +2,7 @@ package net.bigdata.spark_analysis
 
 import com.amazonaws.auth.BasicAWSCredentials
 import com.amazonaws.services.kinesis.AmazonKinesisClient
+import net.liftweb.json._
 import com.google.gson.Gson
 import org.apache.spark.SparkConf
 import org.apache.spark.storage.StorageLevel
@@ -54,8 +55,10 @@ object StreamAnalyzer {
     val stringStream = rawStream.flatMap(data => new String(data).split("\n"))
 
     val motionStream = stringStream.map(data => {
-      val gson = new Gson
-      gson.fromJson(data, classOf[MotionPack])
+      implicit val formats = DefaultFormats
+
+      val json = parse(data)
+      json.extract[MotionPack]
     })
 
     motionStream.foreachRDD(rdd => {

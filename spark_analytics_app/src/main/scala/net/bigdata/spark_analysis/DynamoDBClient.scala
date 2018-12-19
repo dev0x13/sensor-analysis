@@ -6,7 +6,7 @@ import scala.collection.JavaConversions._
 import com.amazonaws.auth.{AWSStaticCredentialsProvider, BasicAWSCredentials}
 import com.amazonaws.services.dynamodbv2.document.Item
 import com.amazonaws.services.dynamodbv2.model.PutItemRequest
-import com.amazonaws.services.dynamodbv2.{AmazonDynamoDB, AmazonDynamoDBClientBuilder}
+import com.amazonaws.services.dynamodbv2.{AmazonDynamoDBAsync, AmazonDynamoDBAsyncClientBuilder}
 import com.amazonaws.services.dynamodbv2.document.internal.InternalUtils
 import com.amazonaws.services.dynamodbv2.model.AttributeValue
 import com.google.gson.Gson
@@ -19,11 +19,12 @@ class DynamoDBClient(
   val credentials = new BasicAWSCredentials(awsAccessKey, awsSecretKey)
   val credentialsProvider = new AWSStaticCredentialsProvider(credentials)
 
-  val clientBuilder: AmazonDynamoDBClientBuilder = AmazonDynamoDBClientBuilder.standard()
+
+  val clientBuilder: AmazonDynamoDBAsyncClientBuilder = AmazonDynamoDBAsyncClientBuilder.standard()
   clientBuilder.setCredentials(credentialsProvider)
   clientBuilder.setRegion(region)
 
-  val db: AmazonDynamoDB = clientBuilder.build()
+  val db: AmazonDynamoDBAsync = clientBuilder.build()
   val gson = new Gson()
 
   private def convertJsonStringToAttributeValue(jsonStr: String): util.Map[String, AttributeValue] = {
@@ -53,6 +54,6 @@ class DynamoDBClient(
       putItemRequest.addItemEntry("timestamp", attr)
     }
 
-    db.putItem(putItemRequest)
+    db.putItemAsync(putItemRequest)
   }
 }
