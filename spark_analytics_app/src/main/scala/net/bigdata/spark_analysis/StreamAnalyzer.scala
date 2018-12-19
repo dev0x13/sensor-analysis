@@ -3,7 +3,6 @@ package net.bigdata.spark_analysis
 import com.amazonaws.auth.BasicAWSCredentials
 import com.amazonaws.services.kinesis.AmazonKinesisClient
 import net.liftweb.json._
-import com.google.gson.Gson
 import org.apache.spark.SparkConf
 import org.apache.spark.storage.StorageLevel
 import org.apache.spark.streaming.StreamingContext

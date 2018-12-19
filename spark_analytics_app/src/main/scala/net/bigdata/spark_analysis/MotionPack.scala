@@ -1,10 +1,10 @@
 package net.bigdata.spark_analysis
 
-import scala.collection.mutable
+import scala.collection.immutable
 
 case class MotionPack(
                        username: String,
-                       data: mutable.Map[String, mutable.Map[String, MotionEvent]]
+                       data: immutable.Map[String, immutable.Map[String, MotionEvent]]
                        )
 
 case class MotionEvent(

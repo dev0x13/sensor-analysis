@@ -9,7 +9,10 @@ import com.amazonaws.services.dynamodbv2.model.PutItemRequest
 import com.amazonaws.services.dynamodbv2.{AmazonDynamoDBAsync, AmazonDynamoDBAsyncClientBuilder}
 import com.amazonaws.services.dynamodbv2.document.internal.InternalUtils
 import com.amazonaws.services.dynamodbv2.model.AttributeValue
-import com.google.gson.Gson
+import net.liftweb.json._
+import net.liftweb.json.Serialization.write
+
+import scala.collection.mutable
 
 class DynamoDBClient(
                       region: String,
@@ -25,7 +28,6 @@ class DynamoDBClient(
   clientBuilder.setRegion(region)
 
   val db: AmazonDynamoDBAsync = clientBuilder.build()
-  val gson = new Gson()
 
   private def convertJsonStringToAttributeValue(jsonStr: String): util.Map[String, AttributeValue] = {
     val item = new Item().withJSON("document", jsonStr)
@@ -34,26 +36,29 @@ class DynamoDBClient(
   }
 
   def putItem(tableName: String, primaryKey: (String, String), stuff: AnyRef, expirationTime: Long): Unit = {
-    val putItemRequest = new PutItemRequest()
-    val keyAttribute = new AttributeValue()
+    implicit val formats = DefaultFormats
 
+    val item = new util.HashMap[String, AttributeValue]
+
+    val keyAttribute = new AttributeValue()
     keyAttribute.setS(primaryKey._2)
 
-    putItemRequest.addItemEntry(primaryKey._1, keyAttribute)
+    item.put(primaryKey._1, keyAttribute)
 
-    val attributeValues: util.Map[String, AttributeValue] = convertJsonStringToAttributeValue(gson.toJson(stuff))
+    val attributeValues: util.Map[String, AttributeValue] = convertJsonStringToAttributeValue(write(stuff))
 
+    /*
     for ((k, v) <- attributeValues) {
       putItemRequest.addItemEntry(k, v)
     }
+    */
 
     if (expirationTime != 0) {
       val attr = new AttributeValue()
       attr.setN(expirationTime.toString)
-      // FIXME
-      putItemRequest.addItemEntry("timestamp", attr)
+      item.put("expitationTime", attr)
     }
 
-    db.putItemAsync(putItemRequest)
+    db.putItemAsync(tableName, item)
   }
 }

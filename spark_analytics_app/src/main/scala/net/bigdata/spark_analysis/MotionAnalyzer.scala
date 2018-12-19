@@ -4,8 +4,9 @@ import java.util.concurrent.TimeUnit
 
 import com.google.common.cache.{Cache, CacheBuilder}
 import org.apache.spark.streaming.Duration
-import scala.math.{pow, sqrt}
 
+import scala.None
+import scala.math.{pow, sqrt}
 import scala.collection.immutable.HashMap
 
 class MotionAnalyzer(timeStep: Duration) {
@@ -71,14 +72,14 @@ class MotionAnalyzer(timeStep: Duration) {
     )
 
   private def unpackMotionEventData(motionPack: MotionPack, key: String): Array[Float] = {
-    val d =  motionPack.data.get(sensorTypes(key))
+    val d = motionPack.data.get(sensorTypes(key))
 
-    val head1 = d.head
+    if (d.isDefined && !d.isEmpty) {
+      val head1 = d.head
 
-    if (head1 != null) {
-      val head2 = head1.head
+      if (head1.nonEmpty) {
+        val head2 = head1.head
 
-      if (head2 != null) {
         return head2._2.data
       }
     }
