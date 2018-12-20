@@ -1,11 +1,10 @@
 package net.bigdata.spark_analysis
 
 import java.util.concurrent.TimeUnit
-import java.util.concurrent.atomic.LongAccumulator
 
 import com.amazonaws.auth.BasicAWSCredentials
 import com.amazonaws.services.kinesis.AmazonKinesisClient
-import com.google.common.cache.{Cache, CacheBuilder}
+import com.google.common.cache._
 import net.liftweb.json._
 import org.apache.spark.SparkConf
 import org.apache.spark.storage.StorageLevel
@@ -13,12 +12,14 @@ import org.apache.spark.streaming.StreamingContext
 import org.apache.spark.streaming.kinesis.{KinesisInputDStream, SparkAWSCredentials}
 import org.apache.spark.util.AccumulatorV2
 
+/*
 class UsersStatesAccumulator(var usersStatesCache: Cache[String, CompoundState])
   extends AccumulatorV2[(String, CompoundState), Cache[String, CompoundState]] {
 
   def this() {
     this(CacheBuilder.newBuilder()
       .expireAfterAccess(30, TimeUnit.SECONDS)
+      //.removalListener(removalListener)
       .build())
   }
 
@@ -46,6 +47,7 @@ class UsersStatesAccumulator(var usersStatesCache: Cache[String, CompoundState])
     usersStatesCache.putAll(other.value.asMap())
   }
 }
+*/
 
 object StreamAnalyzer {
   private def setupStreamingContext(sparkConf: SparkConf, config: StreamConfig): StreamingContext = {
@@ -91,9 +93,33 @@ object StreamAnalyzer {
 
     val stringStream = rawStream.flatMap(data => new String(data).split("\n"))
 
+    /*
     val usersStatesAccumulator = new UsersStatesAccumulator()
 
     streamingSparkContext.sparkContext.register(usersStatesAccumulator)
+*/
+
+    val sharedDynamoDBClient = new DynamoDBClient(
+      config.region,
+      config.awsAccessKey,
+      config.awsSecretKey
+    )
+
+    val userStatesCache: Cache[String, CompoundState] = CacheBuilder.newBuilder()
+      .expireAfterWrite(15, TimeUnit.SECONDS)
+      .removalListener(new RemovalListener[String, CompoundState] {
+        def onRemoval(notification: RemovalNotification[String, CompoundState]): Unit = {
+          if (notification.getCause == RemovalCause.EXPIRED) {
+            val username = notification.getKey
+            println("User offline: " + username)
+
+            sharedDynamoDBClient.deleteItem(
+              "users_states",
+              ("username", username))
+          }
+        }
+      })
+      .build()
 
     val motionStream = stringStream.map(data => {
       implicit val formats = DefaultFormats
@@ -102,38 +128,47 @@ object StreamAnalyzer {
       json.extract[MotionPack]
     })
 
-    var acc = streamingSparkContext.sparkContext.longAccumulator
-
     motionStream.foreachRDD(rdd => {
       val motionPacks = rdd.collect()
 
-      for (motionPack <- motionPacks) {
-        val dynamoDBClient = new DynamoDBClient(
-          config.region,
-          config.awsAccessKey,
-          config.awsSecretKey
-        )
+      val dynamoDBClient = new DynamoDBClient(
+        config.region,
+        config.awsAccessKey,
+        config.awsSecretKey
+      )
 
-        println(motionPack.data.get("synth.sensor.display").head.head._1)
+      for (motionPack <- motionPacks) {
 
         val motionAnalyzer = new MotionAnalyzer(config.batchInterval)
 
-        var userState = usersStatesAccumulator.value.getIfPresent(motionPack.username)
+        //var userState = usersStatesAccumulator.value.getIfPresent(motionPack.username)
+        var userState = userStatesCache.getIfPresent(motionPack.username)
 
         if (userState == null) {
           userState = new CompoundState()
+          println("New user online: " + motionPack.username)
         }
 
         val updUserState = motionAnalyzer.processMotionPack(userState, motionPack)
 
-        usersStatesAccumulator.add(updUserState)
+        //usersStatesAccumulator.add(updUserState)
+        userStatesCache.put(updUserState._1, updUserState._2)
 
-        val expirationTime = (System.currentTimeMillis / 1000) + 60
+        val expirationTime = (System.currentTimeMillis / 1000) + 10
+
+        val dataToStore = updUserState._2.mapRepr()
+
         dynamoDBClient.putItem(
           "users_states",
           ("username", updUserState._1),
-          updUserState._2.mapRepr(),
-          expirationTime)
+          dataToStore, expirationTime)
+
+        dataToStore.put("timestamp", System.currentTimeMillis.toString)
+
+        dynamoDBClient.putItem(
+          "users_states_log",
+          ("username", updUserState._1),
+          dataToStore, 0)
       }
     })
 

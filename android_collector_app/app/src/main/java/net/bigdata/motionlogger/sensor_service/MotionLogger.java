@@ -4,7 +4,6 @@ import java.io.Serializable;
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
-import java.util.Map;
 import java.util.Timer;
 import java.util.TimerTask;
 import java.util.concurrent.ConcurrentHashMap;
@@ -153,8 +152,6 @@ public class MotionLogger extends Service {
 
             sensorsList.add(sensorManager.getDefaultSensor(Sensor.TYPE_STEP_COUNTER));
 
-            powerManager = (PowerManager) getSystemService(POWER_SERVICE);
-
             if (sensorsList != null) {
                 for (Sensor s : sensorsList) {
                     if (s != null) {
@@ -191,12 +188,6 @@ public class MotionLogger extends Service {
                             synchronized (collectedData) {
                                 motionPack = new MotionPack(username, new HashMap<>(collectedData));
 
-                                /*
-                                for (Map.Entry<String, HashMap<String, MotionEvent>> e: collectedData.entrySet()) {
-                                    e.getValue().clear();
-                                }
-                                */
-
                                 collectedData.clear();
                             }
 
@@ -210,7 +201,8 @@ public class MotionLogger extends Service {
             };
 
             Timer timer = new Timer();
-            timer.schedule(timerTask, 1000, 1000);
+            timer.schedule(timerTask, 200, 200);
+            //timer.schedule(timerTask, 1000, 1000);
         }
     }
 
@@ -226,10 +218,10 @@ public class MotionLogger extends Service {
         sensorManager = (SensorManager) getSystemService(Context.SENSOR_SERVICE);
         messenger = new Messenger(new MessageHandler(this));
 
-        PowerManager pm = (PowerManager) getSystemService(Context.POWER_SERVICE);
+        powerManager = (PowerManager) getSystemService(POWER_SERVICE);
 
-        if (pm != null) {
-            partialWakeLock = pm.newWakeLock(PowerManager.PARTIAL_WAKE_LOCK, TAG);
+        if (powerManager != null) {
+            partialWakeLock = powerManager.newWakeLock(PowerManager.PARTIAL_WAKE_LOCK, TAG);
             partialWakeLock.acquire();
         }
     }

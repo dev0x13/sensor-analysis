@@ -10,3 +10,4 @@ build/
 /gradle
 .externalNativeBuild
 .idea/
+__pycache__/

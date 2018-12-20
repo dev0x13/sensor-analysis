@@ -11,7 +11,7 @@ object SensorJobScala extends Logging {
   def main(args: Array[String]) {
     Logger.getRootLogger.setLevel(Level.WARN)
 
-    val batchInterval = Milliseconds(500)
+    val batchInterval = Milliseconds(100)
     val initialPosition = new KinesisInitialPositions.Latest()
     val streamName = "SensorsData"
     val appName = "SensorAnalysisJob"

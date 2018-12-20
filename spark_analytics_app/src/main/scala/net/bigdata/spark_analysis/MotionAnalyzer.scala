@@ -105,8 +105,6 @@ class MotionAnalyzer(timeStep: Duration) {
   def processMotionPack(userState: CompoundState, motionPack: MotionPack): (String, CompoundState) = {
     /* One-sample analytics */
 
-
-
     userState.iterations += 1
 
     val rotation = unpackMotionEventData(motionPack, "rotation")
