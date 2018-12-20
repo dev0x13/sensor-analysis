@@ -10,7 +10,8 @@ import org.apache.spark.SparkConf
 import org.apache.spark.storage.StorageLevel
 import org.apache.spark.streaming.StreamingContext
 import org.apache.spark.streaming.kinesis.{KinesisInputDStream, SparkAWSCredentials}
-import org.apache.spark.util.AccumulatorV2
+import scala.util.control.Breaks._
+
 
 /*
 class UsersStatesAccumulator(var usersStatesCache: Cache[String, CompoundState])
@@ -128,47 +129,53 @@ object StreamAnalyzer {
       json.extract[MotionPack]
     })
 
+    val dynamoDBClient = new DynamoDBClient(
+      config.region,
+      config.awsAccessKey,
+      config.awsSecretKey
+    )
+
     motionStream.foreachRDD(rdd => {
       val motionPacks = rdd.collect()
 
-      val dynamoDBClient = new DynamoDBClient(
-        config.region,
-        config.awsAccessKey,
-        config.awsSecretKey
-      )
+      val motionAnalyzer = new MotionAnalyzer(config.batchInterval)
 
-      for (motionPack <- motionPacks) {
+      breakable {
+        for (motionPack <- motionPacks) {
 
-        val motionAnalyzer = new MotionAnalyzer(config.batchInterval)
+          //var userState = usersStatesAccumulator.value.getIfPresent(motionPack.username)
+          var userState = userStatesCache.getIfPresent(motionPack.username)
 
-        //var userState = usersStatesAccumulator.value.getIfPresent(motionPack.username)
-        var userState = userStatesCache.getIfPresent(motionPack.username)
+          if (System.currentTimeMillis - motionPack.data("synth.sensor.display").head._1.toLong > 6000) {
+            break
+          }
 
-        if (userState == null) {
-          userState = new CompoundState()
-          println("New user online: " + motionPack.username)
+          if (userState == null) {
+            userState = new CompoundState()
+            println("New user online: " + motionPack.username)
+          }
+
+          val updUserState = motionAnalyzer.processMotionPack(userState, motionPack)
+
+          //usersStatesAccumulator.add(updUserState)
+          userStatesCache.put(updUserState._1, updUserState._2)
+
+          val expirationTime = (System.currentTimeMillis / 1000) + 10
+
+          val dataToStore = updUserState._2.mapRepr()
+
+          dynamoDBClient.putItem(
+            "users_states",
+            ("username", updUserState._1),
+            dataToStore, expirationTime)
+
+          dataToStore.put("timestamp", System.currentTimeMillis.toString)
+
+          dynamoDBClient.putItem(
+            "users_states_log",
+            ("username", updUserState._1),
+            dataToStore, 0)
         }
-
-        val updUserState = motionAnalyzer.processMotionPack(userState, motionPack)
-
-        //usersStatesAccumulator.add(updUserState)
-        userStatesCache.put(updUserState._1, updUserState._2)
-
-        val expirationTime = (System.currentTimeMillis / 1000) + 10
-
-        val dataToStore = updUserState._2.mapRepr()
-
-        dynamoDBClient.putItem(
-          "users_states",
-          ("username", updUserState._1),
-          dataToStore, expirationTime)
-
-        dataToStore.put("timestamp", System.currentTimeMillis.toString)
-
-        dynamoDBClient.putItem(
-          "users_states_log",
-          ("username", updUserState._1),
-          dataToStore, 0)
       }
     })
 
