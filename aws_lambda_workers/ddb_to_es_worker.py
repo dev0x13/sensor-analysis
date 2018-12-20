@@ -19,4 +19,5 @@ es = Elasticsearch(
 
 def lambda_handler(event, context):
     for record in event['Records']:
-        es.index(index="user-states", doc_type='state', id=record['dynamodb']['Keys']['username']['S'], body=record["dynamodb"])
+        es.index(index="user-states", doc_type='state', id=record['dynamodb']['Keys']['username']['S'] + str(record['dynamodb']['Keys']['timestamp']['N']), body=record["dynamodb"])
+
