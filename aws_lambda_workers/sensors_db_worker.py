@@ -18,7 +18,13 @@ def lambda_handler(event, context):
           dataToPut = {}
           compositeKeyCommonPart = "%s[%s]" % (username, sensorName)
           for timestamp, sensorDataEntry in sensorData.items():
-              dataToPut = {str(i):{"N": str(x)} for i, x in enumerate(sensorDataEntry["data"])}
-              dataToPut["label"] = {"S": sensorDataEntry["label"]}
+              if "data" in sensorDataEntry:
+                  dataToPut["data"] = {"S": json.dumps(sensorDataEntry["data"])}
+                  
+              #if "label" in sensorDataEntry:
+              #    dataToPut["label"] = {"S": sensorDataEntry["label"]}
+
               dataToPut["compositeKey"] = {"S": "%s[%s]" % (compositeKeyCommonPart, timestamp)}
+              dataToPut["sensor"] = {"S": sensorName}
               dynamodb.put_item(TableName="sensor_data", Item=dataToPut)
+       
