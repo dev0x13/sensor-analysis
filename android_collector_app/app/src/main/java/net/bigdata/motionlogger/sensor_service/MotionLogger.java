@@ -157,10 +157,12 @@ public class MotionLogger extends Service {
 
             if (sensorsList != null) {
                 for (Sensor s : sensorsList) {
-                    sensorManager.registerListener(
-                            new CustomSensorEventListener(s.getStringType(), this),
-                            sensorManager.getSensorList(s.getType()).get(0),
-                            SensorManager.SENSOR_DELAY_FASTEST);
+                    if (s != null) {
+                        sensorManager.registerListener(
+                                new CustomSensorEventListener(s.getStringType(), this),
+                                sensorManager.getSensorList(s.getType()).get(0),
+                                SensorManager.SENSOR_DELAY_FASTEST);
+                    }
                 }
             }
 

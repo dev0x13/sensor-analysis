@@ -2,7 +2,6 @@ package net.bigdata.spark_analysis
 
 import java.util
 
-import com.google.common.cache.Cache
 import org.apache.spark.streaming.Duration
 
 import scala.math.{pow, sqrt}
@@ -103,15 +102,10 @@ class MotionAnalyzer(timeStep: Duration) {
     null
   }
 
-  def processMotionPack(userStatesCache: Cache[String, CompoundState], motionPack: MotionPack): (String, CompoundState) = {
+  def processMotionPack(userState: CompoundState, motionPack: MotionPack): (String, CompoundState) = {
     /* One-sample analytics */
 
-    var userState = userStatesCache.getIfPresent(motionPack.username)
 
-    if (userState == null) {
-      userState = new CompoundState()
-      userStatesCache.put(motionPack.username, userState)
-    }
 
     userState.iterations += 1
 
@@ -135,12 +129,13 @@ class MotionAnalyzer(timeStep: Duration) {
 
     val stepCounter = unpackMotionEventData(motionPack, "stepCounter")
 
-    if (stepCounter != null) {
-      userState.stepCounter = stepCounter(0).toLong
-    }
-
     if (userState.iterations < skipFrames) {
-      return (motionPack.username, userState)
+      if (stepCounter != null) {
+        userState.stepCounter = stepCounter(0).toLong
+      }
+
+      val ret = (motionPack.username, userState)
+      return ret
     }
 
     if (stepCounter != null && stepCounter(0) - userState.stepCounter > 1) {
@@ -149,7 +144,8 @@ class MotionAnalyzer(timeStep: Duration) {
     } else {
       if ((userState.iterations - userState.sleepStartIter) * timeStep.milliseconds > sleepingT) {
         userState.userState = Sleeping
-      } else if ((userState.iterations - userState.walkStartIter) * timeStep.milliseconds > standingT) {
+      } else if ((userState.iterations - userState.walkStartIter) * timeStep.milliseconds > standingT &&
+                  userState.deviceState != Idle) {
         userState.userState = Standing
       }
     }
@@ -171,6 +167,11 @@ class MotionAnalyzer(timeStep: Duration) {
       userState.userState = Chatting
     }
 
-    (motionPack.username, userState)
+    if (stepCounter != null) {
+      userState.stepCounter = stepCounter(0).toLong
+    }
+
+    val ret = (motionPack.username, userState)
+    ret
   }
 }

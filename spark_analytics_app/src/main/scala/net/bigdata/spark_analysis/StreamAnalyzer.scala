@@ -1,6 +1,7 @@
 package net.bigdata.spark_analysis
 
 import java.util.concurrent.TimeUnit
+import java.util.concurrent.atomic.LongAccumulator
 
 import com.amazonaws.auth.BasicAWSCredentials
 import com.amazonaws.services.kinesis.AmazonKinesisClient
@@ -10,6 +11,41 @@ import org.apache.spark.SparkConf
 import org.apache.spark.storage.StorageLevel
 import org.apache.spark.streaming.StreamingContext
 import org.apache.spark.streaming.kinesis.{KinesisInputDStream, SparkAWSCredentials}
+import org.apache.spark.util.AccumulatorV2
+
+class UsersStatesAccumulator(var usersStatesCache: Cache[String, CompoundState])
+  extends AccumulatorV2[(String, CompoundState), Cache[String, CompoundState]] {
+
+  def this() {
+    this(CacheBuilder.newBuilder()
+      .expireAfterAccess(30, TimeUnit.SECONDS)
+      .build())
+  }
+
+  def add(v: (String, CompoundState)): Unit = {
+    usersStatesCache.put(v._1, v._2)
+  }
+
+  def value: Cache[String, CompoundState] = {
+    usersStatesCache
+  }
+
+  def reset(): Unit = {
+    usersStatesCache.invalidateAll()
+  }
+
+  def isZero(): Boolean = {
+    usersStatesCache.size() == 0
+  }
+
+  def copy(): AccumulatorV2[(String, CompoundState), Cache[String, CompoundState]] = {
+    new UsersStatesAccumulator(usersStatesCache)
+  }
+
+  def merge(other: AccumulatorV2[(String, CompoundState), Cache[String, CompoundState]]) = {
+    usersStatesCache.putAll(other.value.asMap())
+  }
+}
 
 object StreamAnalyzer {
   private def setupStreamingContext(sparkConf: SparkConf, config: StreamConfig): StreamingContext = {
@@ -55,6 +91,10 @@ object StreamAnalyzer {
 
     val stringStream = rawStream.flatMap(data => new String(data).split("\n"))
 
+    val usersStatesAccumulator = new UsersStatesAccumulator()
+
+    streamingSparkContext.sparkContext.register(usersStatesAccumulator)
+
     val motionStream = stringStream.map(data => {
       implicit val formats = DefaultFormats
 
@@ -62,30 +102,39 @@ object StreamAnalyzer {
       json.extract[MotionPack]
     })
 
-    lazy val userStatesCache: Cache[String, CompoundState] = CacheBuilder.newBuilder()
-      .expireAfterAccess(30, TimeUnit.SECONDS)
-      .build()
+    var acc = streamingSparkContext.sparkContext.longAccumulator
 
     motionStream.foreachRDD(rdd => {
-      println(rdd.count())
+      val motionPacks = rdd.collect()
 
-      rdd.foreach(motionPack => {
+      for (motionPack <- motionPacks) {
         val dynamoDBClient = new DynamoDBClient(
           config.region,
           config.awsAccessKey,
           config.awsSecretKey
         )
 
+        println(motionPack.data.get("synth.sensor.display").head.head._1)
+
         val motionAnalyzer = new MotionAnalyzer(config.batchInterval)
 
-        val userState = motionAnalyzer.processMotionPack(userStatesCache, motionPack)
+        var userState = usersStatesAccumulator.value.getIfPresent(motionPack.username)
+
+        if (userState == null) {
+          userState = new CompoundState()
+        }
+
+        val updUserState = motionAnalyzer.processMotionPack(userState, motionPack)
+
+        usersStatesAccumulator.add(updUserState)
+
         val expirationTime = (System.currentTimeMillis / 1000) + 60
         dynamoDBClient.putItem(
           "users_states",
-          ("username", userState._1),
-          userState._2.mapRepr(),
+          ("username", updUserState._1),
+          updUserState._2.mapRepr(),
           expirationTime)
-      })
+      }
     })
 
     streamingSparkContext.start()
