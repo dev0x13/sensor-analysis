@@ -19,5 +19,13 @@ es = Elasticsearch(
 
 def lambda_handler(event, context):
     for record in event['Records']:
-        es.index(index="user-states", doc_type='state', id=record['dynamodb']['Keys']['username']['S'] + str(record['dynamodb']['Keys']['timestamp']['N']), body=record["dynamodb"])
+        ddbARN = record['eventSourceARN']
+        ddbTable = ddbARN.split(':')[5].split('/')[1]
+        
+        if ddbTable == "users_states_log":
+            index = "user-states"
+            es.index(index=index, doc_type='state', id=record['dynamodb']['Keys']['username']['S'] + str(record['dynamodb']['Keys']['timestamp']['N']), body=record["dynamodb"])
+        elif ddbTable == "sensor_data":
+            index = "raw-sensor-data"
+            es.index(index=index, doc_type='raw-sensor-data', id=record['dynamodb']['Keys']['compositeKey']['S'], body=record["dynamodb"])
 
