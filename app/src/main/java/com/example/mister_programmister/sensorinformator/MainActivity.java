@@ -22,12 +22,13 @@ public class MainActivity extends AppCompatActivity {
     TextView ansText;
     SensorManager sensorManager;
     Sensor sensorLight;
-    Sensor sensorAccel;
+   // Sensor sensorAccel;
     Sensor sensorLinAccel;
     Sensor sensorGravity;
     Sensor sensorRot;
     Sensor sensorStep;
     Sensor sensorPressure;
+    Sensor sensorProxim;
 
     StringBuilder sb = new StringBuilder();
 
@@ -52,15 +53,13 @@ public class MainActivity extends AppCompatActivity {
         sensorRot = sensorManager.getDefaultSensor(Sensor.TYPE_ROTATION_VECTOR);
         sensorStep = sensorManager.getDefaultSensor(Sensor.TYPE_STEP_COUNTER);
         sensorPressure = sensorManager.getDefaultSensor(Sensor.TYPE_PRESSURE);
+        sensorProxim = sensorManager.getDefaultSensor(Sensor.TYPE_PROXIMITY);
 
         powerManager = (PowerManager) getSystemService(POWER_SERVICE);
-        sensorAccel = sensorManager.getDefaultSensor(Sensor.TYPE_LINEAR_ACCELERATION);
-        //sensorLinAccel = sensorManager.getDefaultSensor(Sensor.TYPE_LINEAR_ACCELERATION);
-        //sensorGravity = sensorManager.getDefaultSensor(Sensor.TYPE_GRAVITY);
+        sensorLinAccel = sensorManager.getDefaultSensor(Sensor.TYPE_LINEAR_ACCELERATION);
 
         mapInizialization();
     }
-
 
     @Override
     protected void onResume() {
@@ -70,7 +69,8 @@ public class MainActivity extends AppCompatActivity {
         sensorManager.registerListener(listeners, sensorRot, SensorManager.SENSOR_DELAY_NORMAL);
         sensorManager.registerListener(listeners, sensorStep, SensorManager.SENSOR_DELAY_NORMAL);
         sensorManager.registerListener(listeners, sensorPressure, SensorManager.SENSOR_DELAY_NORMAL);
-        sensorManager.registerListener(listeners, sensorAccel, SensorManager.SENSOR_DELAY_NORMAL);
+        sensorManager.registerListener(listeners, sensorLinAccel, SensorManager.SENSOR_DELAY_NORMAL);
+        sensorManager.registerListener(listeners, sensorProxim, SensorManager.SENSOR_DELAY_NORMAL);
 
         Timer timer = new Timer();
         TimerTask task = new TimerTask() {
@@ -88,12 +88,13 @@ public class MainActivity extends AppCompatActivity {
     }
 
     void mapInizialization(){
-        float a[] = new float[3];
+        float a[] = new float[4];
         sensorsValues.put(anal.sLight, a);
         sensorsValues.put(anal.sRot, a);
         sensorsValues.put(anal.sSteps, a);
         sensorsValues.put(anal.sPressure, a);
-        sensorsValues.put(anal.sAccel, a);
+        sensorsValues.put(anal.sLinAccel, a);
+        sensorsValues.put(anal.sProxim, a);
     }
 
     void showInfo() {
@@ -101,14 +102,17 @@ public class MainActivity extends AppCompatActivity {
         sb.append("Light: " + sensorsValues.get(anal.sLight)[0])
                 .append("\n\nRotation: " + sensorsValues.get(anal.sRot)[0] + " " +
                         sensorsValues.get(anal.sRot)[1] + " " + sensorsValues.get(anal.sRot)[2])
+
+                .append("\n\nRot Euler: " + anal.eulerAngels[0] + " " +
+                        anal.eulerAngels[1] + " " + anal.eulerAngels[2])
+
                 .append("\n\nMotionDetect: " + sensorsValues.get(anal.sSteps)[0])
                 .append("\n\nScreen: " + valuesScreen[0])
                 .append("\n\nPressure: " +  sensorsValues.get(anal.sPressure)[0] * 0.750062f)
-                .append("\n\nH: " +  (int)Math.floor((18.4f * 1000 * Math.log10(770.f /
-                        (sensorsValues.get(anal.sPressure)[0] * 0.750062f)) - 20) / 5))
-                .append("\n\nProximity: " +  sensorsValues.get(anal.sAccel)[0] + " " +
-                        sensorsValues.get(anal.sAccel)[1] + " " +
-                        sensorsValues.get(anal.sAccel)[2]);
+                .append("\n\nTypingCount: " +  anal.typingCount)
+                .append("\n\nProximity: " +  sensorsValues.get(anal.sLinAccel)[0] + " " +
+                        sensorsValues.get(anal.sLinAccel)[1] + " " +
+                        sensorsValues.get(anal.sLinAccel)[2]);
         tvText.setText(sb);
 
         ansText.setText(anal.getInfo(sensorsValues));
@@ -146,7 +150,15 @@ public class MainActivity extends AppCompatActivity {
             case Sensor.TYPE_PRESSURE:
                 return anal.sPressure;
             case Sensor.TYPE_LINEAR_ACCELERATION:
+                return anal.sLinAccel;
+            case Sensor.TYPE_PROXIMITY:
+                return anal.sProxim;
+                /*
+            case Sensor.TYPE_ACCELEROMETER:
                 return anal.sAccel;
+            case Sensor.TYPE_MAGNETIC_FIELD:
+                return anal.sMagnit;
+                */
         }
         return "";
     }
