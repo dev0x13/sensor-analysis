@@ -27,6 +27,7 @@ public class MainActivity extends AppCompatActivity {
     Sensor sensorGravity;
     Sensor sensorRot;
     Sensor sensorStep;
+    Sensor sensorPressure;
 
     StringBuilder sb = new StringBuilder();
 
@@ -50,9 +51,10 @@ public class MainActivity extends AppCompatActivity {
         sensorLight = sensorManager.getDefaultSensor(Sensor.TYPE_LIGHT);
         sensorRot = sensorManager.getDefaultSensor(Sensor.TYPE_ROTATION_VECTOR);
         sensorStep = sensorManager.getDefaultSensor(Sensor.TYPE_STEP_COUNTER);
+        sensorPressure = sensorManager.getDefaultSensor(Sensor.TYPE_PRESSURE);
 
         powerManager = (PowerManager) getSystemService(POWER_SERVICE);
-        //sensorAccel = sensorManager.getDefaultSensor(Sensor.TYPE_ACCELEROMETER);
+        sensorAccel = sensorManager.getDefaultSensor(Sensor.TYPE_LINEAR_ACCELERATION);
         //sensorLinAccel = sensorManager.getDefaultSensor(Sensor.TYPE_LINEAR_ACCELERATION);
         //sensorGravity = sensorManager.getDefaultSensor(Sensor.TYPE_GRAVITY);
 
@@ -67,7 +69,8 @@ public class MainActivity extends AppCompatActivity {
         sensorManager.registerListener(listeners, sensorLight, SensorManager.SENSOR_DELAY_NORMAL);
         sensorManager.registerListener(listeners, sensorRot, SensorManager.SENSOR_DELAY_NORMAL);
         sensorManager.registerListener(listeners, sensorStep, SensorManager.SENSOR_DELAY_NORMAL);
-
+        sensorManager.registerListener(listeners, sensorPressure, SensorManager.SENSOR_DELAY_NORMAL);
+        sensorManager.registerListener(listeners, sensorAccel, SensorManager.SENSOR_DELAY_NORMAL);
 
         Timer timer = new Timer();
         TimerTask task = new TimerTask() {
@@ -89,6 +92,8 @@ public class MainActivity extends AppCompatActivity {
         sensorsValues.put(anal.sLight, a);
         sensorsValues.put(anal.sRot, a);
         sensorsValues.put(anal.sSteps, a);
+        sensorsValues.put(anal.sPressure, a);
+        sensorsValues.put(anal.sAccel, a);
     }
 
     void showInfo() {
@@ -97,7 +102,13 @@ public class MainActivity extends AppCompatActivity {
                 .append("\n\nRotation: " + sensorsValues.get(anal.sRot)[0] + " " +
                         sensorsValues.get(anal.sRot)[1] + " " + sensorsValues.get(anal.sRot)[2])
                 .append("\n\nMotionDetect: " + sensorsValues.get(anal.sSteps)[0])
-                .append("\n\nScreen: " + valuesScreen[0]);
+                .append("\n\nScreen: " + valuesScreen[0])
+                .append("\n\nPressure: " +  sensorsValues.get(anal.sPressure)[0] * 0.750062f)
+                .append("\n\nH: " +  (int)Math.floor((18.4f * 1000 * Math.log10(770.f /
+                        (sensorsValues.get(anal.sPressure)[0] * 0.750062f)) - 20) / 5))
+                .append("\n\nProximity: " +  sensorsValues.get(anal.sAccel)[0] + " " +
+                        sensorsValues.get(anal.sAccel)[1] + " " +
+                        sensorsValues.get(anal.sAccel)[2]);
         tvText.setText(sb);
 
         ansText.setText(anal.getInfo(sensorsValues));
@@ -132,6 +143,10 @@ public class MainActivity extends AppCompatActivity {
                 return anal.sLight;
             case Sensor.TYPE_STEP_COUNTER:
                 return anal.sSteps;
+            case Sensor.TYPE_PRESSURE:
+                return anal.sPressure;
+            case Sensor.TYPE_LINEAR_ACCELERATION:
+                return anal.sAccel;
         }
         return "";
     }

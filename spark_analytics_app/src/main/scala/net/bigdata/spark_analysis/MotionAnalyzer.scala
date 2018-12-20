@@ -1,13 +1,52 @@
 package net.bigdata.spark_analysis
 
-import java.util.concurrent.TimeUnit
+import java.util
 
-import com.google.common.cache.{Cache, CacheBuilder}
+import com.google.common.cache.Cache
 import org.apache.spark.streaming.Duration
 
-import scala.None
 import scala.math.{pow, sqrt}
 import scala.collection.immutable.HashMap
+
+object UserState extends Enumeration {
+  type UserState = Value
+  val None = Value("None")
+  val Walking = Value("Walking")
+  val Standing = Value("Standing")
+  val Sleeping = Value("Sleeping")
+  val Chatting = Value("Chatting")
+  val Away = Value("Away")
+}
+
+object DeviceState extends Enumeration {
+  type DeviceState = Value
+  val None = Value("None")
+  val InPocket = Value("InPocket")
+  val InHand = Value("InHand")
+  val Idle = Value("Idle")
+}
+
+import UserState._
+import DeviceState._
+
+class CompoundState {
+  var userState: UserState = UserState.None
+  var deviceState: DeviceState = DeviceState.None
+  var iterations: Long = 0
+  var walkStartIter: Long = 0
+  var stepCounter: Long = 0
+  var sleepStartIter: Long = 0
+  var accelerometerTrack: Array[Double] = Array(0, 0, 0)
+
+  def mapRepr(): util.Map[String, String] = {
+    val map = new util.HashMap[String, String]
+
+    map.put("userState", userState.toString)
+    map.put("deviceState", deviceState.toString)
+
+    map
+  }
+}
 
 class MotionAnalyzer(timeStep: Duration) {
   val posE = 0.03
@@ -15,32 +54,8 @@ class MotionAnalyzer(timeStep: Duration) {
   val skipFrames = 5
   val standingT = 3500
   val sleepingT: Long = 3600 * 1000
-
-  object UserState extends Enumeration {
-    type UserState = Value
-    val None, Walking, Standing, Sleeping = Value
-  }
-
-  object DeviceState extends Enumeration {
-    type DeviceState = Value
-    val None, InPocket, InHand, Idle = Value
-  }
-
-  import UserState._
-  import DeviceState._
-
-  class CompoundState {
-    var userState: UserState = UserState.None
-    var deviceState: DeviceState = DeviceState.None
-    var iterations: Long = 0
-    var walkStartIter: Long = 0
-    var stepCounter: Long = 0
-    var sleepStartIter: Long = 0
-  }
-
-  lazy val userStatesCache: Cache[String, CompoundState] = CacheBuilder.newBuilder()
-    .expireAfterAccess(30, TimeUnit.SECONDS)
-    .build()
+  val accelTrackCoeffs = Array(1, 0.35, 0.15)
+  val accelTrackCoeffsSum = 1.5
 
   /* SENSORS:
 
@@ -68,13 +83,14 @@ class MotionAnalyzer(timeStep: Duration) {
       "light" -> "android.sensor.light",
       "rotation" -> "android.sensor.rotation_vector",
       "display" -> "synth.sensor.display",
-      "stepCounter" -> "android.sensor.step_counter"
+      "stepCounter" -> "android.sensor.step_counter",
+      "accelerometer" -> "android.sensor.accelerometer"
     )
 
   private def unpackMotionEventData(motionPack: MotionPack, key: String): Array[Float] = {
     val d = motionPack.data.get(sensorTypes(key))
 
-    if (d.isDefined && !d.isEmpty) {
+    if (d.isDefined) {
       val head1 = d.head
 
       if (head1.nonEmpty) {
@@ -87,14 +103,17 @@ class MotionAnalyzer(timeStep: Duration) {
     null
   }
 
-  def processMotionPack(motionPack: MotionPack): (String, CompoundState) = {
+  def processMotionPack(userStatesCache: Cache[String, CompoundState], motionPack: MotionPack): (String, CompoundState) = {
     /* One-sample analytics */
 
     var userState = userStatesCache.getIfPresent(motionPack.username)
 
     if (userState == null) {
       userState = new CompoundState()
+      userStatesCache.put(motionPack.username, userState)
     }
+
+    userState.iterations += 1
 
     val rotation = unpackMotionEventData(motionPack, "rotation")
     val light = unpackMotionEventData(motionPack, "light")
@@ -103,6 +122,7 @@ class MotionAnalyzer(timeStep: Duration) {
     if (rotation != null && sqrt(pow(rotation(0).toDouble, 2) +
                                  pow(rotation(1).toDouble, 2)) < posE) {
       userState.deviceState = Idle
+      userState.userState = Away
       userState.sleepStartIter = userState.iterations
     } else {
       if (light != null && display != null &&
@@ -136,6 +156,19 @@ class MotionAnalyzer(timeStep: Duration) {
 
     if (display(0) == 0.1) {
       userState.sleepStartIter = userState.iterations
+    }
+
+    val accel = unpackMotionEventData(motionPack, "accelerometer")
+
+    userState.accelerometerTrack((userState.iterations % 3).toInt) =
+      sqrt(accel(1) * accel(1) + accel(2) * accel(2))
+
+    val accelZAver = (accelTrackCoeffs(0) * accelTrackCoeffs((userState.iterations % 3).toInt) +
+      accelTrackCoeffs(1) * accelTrackCoeffs(((userState.iterations - 1) % 3).toInt) +
+      accelTrackCoeffs(1) * accelTrackCoeffs(((userState.iterations - 2) % 3).toInt)) / accelTrackCoeffsSum
+
+    if (accelZAver < 0.3 && accelZAver > 0.063 && accel(0) < 1 && accel(1) < 0.7 && accel(2) < 0.6) {
+      userState.userState = Chatting
     }
 
     (motionPack.username, userState)

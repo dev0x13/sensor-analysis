@@ -1,7 +1,10 @@
 package net.bigdata.spark_analysis
 
+import java.util.concurrent.TimeUnit
+
 import com.amazonaws.auth.BasicAWSCredentials
 import com.amazonaws.services.kinesis.AmazonKinesisClient
+import com.google.common.cache.{Cache, CacheBuilder}
 import net.liftweb.json._
 import org.apache.spark.SparkConf
 import org.apache.spark.storage.StorageLevel
@@ -41,7 +44,6 @@ object StreamAnalyzer {
         .dynamoDBCredentials(awsCredentials)
         .streamName(config.streamName)
         .endpointUrl(config.endpointUrl)
-        .regionName(config.region)
         .initialPosition(config.initialPosition)
         .checkpointAppName(config.appName)
         .checkpointInterval(config.batchInterval)
@@ -60,8 +62,13 @@ object StreamAnalyzer {
       json.extract[MotionPack]
     })
 
+    lazy val userStatesCache: Cache[String, CompoundState] = CacheBuilder.newBuilder()
+      .expireAfterAccess(30, TimeUnit.SECONDS)
+      .build()
+
     motionStream.foreachRDD(rdd => {
       println(rdd.count())
+
       rdd.foreach(motionPack => {
         val dynamoDBClient = new DynamoDBClient(
           config.region,
@@ -71,12 +78,12 @@ object StreamAnalyzer {
 
         val motionAnalyzer = new MotionAnalyzer(config.batchInterval)
 
-        val userState = motionAnalyzer.processMotionPack(motionPack)
-        val expirationTime = System.currentTimeMillis + 60 * 1000
+        val userState = motionAnalyzer.processMotionPack(userStatesCache, motionPack)
+        val expirationTime = (System.currentTimeMillis / 1000) + 60
         dynamoDBClient.putItem(
           "users_states",
           ("username", userState._1),
-          userState._2,
+          userState._2.mapRepr(),
           expirationTime)
       })
     })

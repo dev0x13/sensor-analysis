@@ -1,0 +1,18 @@
+{% extends 'layout.html' %}
+
+
+{% block scripts %}
+  {{ super() }}
+  <script
+    src="https://code.jquery.com/jquery-3.3.1.min.js"
+    integrity="sha256-FgpCb/KJQlLNfOu91ta32o/NMZxltwRo8QtmkMRdAu8="
+    crossorigin="anonymous"></script>
+  <script src='{{ url_for("static", filename = "js/index.js") }}'></script>
+{% endblock %}
+
+{% block page_content %}
+  <div class="list-group">
+    <h2>Users online</h2>
+    <div id="usersOnline"></div>
+  </div>
+{% endblock %}

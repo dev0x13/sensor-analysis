@@ -18,6 +18,7 @@ import android.support.v7.app.AppCompatActivity;
 import android.os.Bundle;
 import android.text.InputType;
 import android.widget.EditText;
+import android.widget.TextView;
 
 import com.crashlytics.android.Crashlytics;
 import io.fabric.sdk.android.Fabric;
@@ -164,6 +165,10 @@ public class MainActivity extends AppCompatActivity {
         } else {
             runService(username);
         }
+
+        username = sharedPreferences.getString("username", null);
+        TextView userNameView = findViewById(R.id.textView);
+        userNameView.setText("Assigned username: " + username);
     }
 
     @Override

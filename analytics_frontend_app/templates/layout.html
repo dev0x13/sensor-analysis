@@ -1,0 +1,31 @@
+{% extends "bootstrap/base.html" %}
+
+{% block scripts %}
+  {{ super() }}
+{% endblock %}
+
+{% block styles %}
+  {{ super() }}
+{% endblock %}
+
+{% block title %}
+  Sensor analyzer
+{% endblock %}
+
+{% block navbar %}
+  <div class='navbar navbar-default navbar-static-top' role='navigation'>
+    <div class='container-fluid'>
+      <div class='navbar-header'>
+        <a class='navbar-brand' href='{{ url_for("index") }}'>BIGDATA: Sensor analyzer</a>
+      </div>
+    </div>
+  </div>
+{% endblock %}
+
+{% block content %}
+  <div class="container">
+    <div class='jumbotron'>
+      {% block page_content %}{% endblock %}
+    </div>
+  </div>
+{% endblock %}
