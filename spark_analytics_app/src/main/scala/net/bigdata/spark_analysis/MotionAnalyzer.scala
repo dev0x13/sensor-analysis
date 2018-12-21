@@ -216,7 +216,7 @@ class MotionAnalyzer(timeStep: Duration) {
 
     val proximity = unpackMotionEventData(motionPack, "proximity")
 
-    if (proximity(0) < 1 &&
+    if ((proximity == null || (proximity != null && proximity(0) < 1)) &&
         userState.eulerAngles(0) > speakTangLim(0) &&
         userState.eulerAngles(0) < speakTangLim(10) &&
         ((userState.eulerAngles(1) > speakKrenLim(0) && userState.eulerAngles(1) < speakKrenLim(1)) ||
