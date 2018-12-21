@@ -135,23 +135,6 @@ class MotionAnalyzer(timeStep: Duration) {
 
     val stepCounter = unpackMotionEventData(motionPack, "stepCounter")
 
-    if (userState.iterations < skipFrames) {
-      if (stepCounter != null) {
-        userState.stepCounter = stepCounter(0).toLong
-      }
-
-      val ret = (motionPack.username, userState)
-      return ret
-    }
-
-    if (display(0) == 0.1) {
-      userState.sleepStartIter = userState.iterations
-    }
-
-    if (stepCounter != null) {
-      userState.stepCounter = stepCounter(0).toLong
-    }
-
     if (rotation != null) {
       val q = Array(rotation(3), rotation(0), rotation(1), rotation(2))
       userState.eulerAngles = quatToEuler(q)
@@ -169,6 +152,15 @@ class MotionAnalyzer(timeStep: Duration) {
       } else {
         userState.deviceState = InHand
       }
+    }
+
+    if (userState.iterations < skipFrames) {
+      if (stepCounter != null) {
+        userState.stepCounter = stepCounter(0).toLong
+      }
+
+      val ret = (motionPack.username, userState)
+      return ret
     }
 
     if (stepCounter != null && stepCounter(0) - userState.stepCounter > 1) {
@@ -214,13 +206,21 @@ class MotionAnalyzer(timeStep: Duration) {
       }
     }
 
+    if (display(0) == 0.0) {
+      userState.sleepStartIter = userState.iterations
+    }
+
+    if (stepCounter != null) {
+      userState.stepCounter = stepCounter(0).toLong
+    }
+
     val proximity = unpackMotionEventData(motionPack, "proximity")
 
-    if(proximity(0) < 1 &&
-      userState.eulerAngles(0) > speakTangLim(0) &&
-      userState.eulerAngles(0) < speakTangLim(10) &&
-      ((userState.eulerAngles(1) > speakKrenLim(0) && userState.eulerAngles(1) < speakKrenLim(1)) ||
-       (userState.eulerAngles(1) > -speakKrenLim(1) && userState.eulerAngles(1) < -speakKrenLim(0)))) {
+    if (proximity(0) < 1 &&
+        userState.eulerAngles(0) > speakTangLim(0) &&
+        userState.eulerAngles(0) < speakTangLim(10) &&
+        ((userState.eulerAngles(1) > speakKrenLim(0) && userState.eulerAngles(1) < speakKrenLim(1)) ||
+         (userState.eulerAngles(1) > -speakKrenLim(1) && userState.eulerAngles(1) < -speakKrenLim(0)))) {
       userState.userState = Calling
     }
 

@@ -146,7 +146,7 @@ object StreamAnalyzer {
           //var userState = usersStatesAccumulator.value.getIfPresent(motionPack.username)
           var userState = userStatesCache.getIfPresent(motionPack.username)
 
-          if (System.currentTimeMillis - motionPack.data("synth.sensor.display").head._1.toLong > 6000) {
+          if (System.currentTimeMillis - motionPack.data("synth.sensor.display").head._1.toLong > 7000) {
             break
           }
 
