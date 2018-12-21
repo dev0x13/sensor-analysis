@@ -218,7 +218,7 @@ class MotionAnalyzer(timeStep: Duration) {
 
     if ((proximity == null || (proximity != null && proximity(0) < 1)) &&
         userState.eulerAngles(0) > speakTangLim(0) &&
-        userState.eulerAngles(0) < speakTangLim(10) &&
+        userState.eulerAngles(0) < speakTangLim(1) &&
         ((userState.eulerAngles(1) > speakKrenLim(0) && userState.eulerAngles(1) < speakKrenLim(1)) ||
          (userState.eulerAngles(1) > -speakKrenLim(1) && userState.eulerAngles(1) < -speakKrenLim(0)))) {
       userState.userState = Calling
